@@ -7,13 +7,13 @@
 <project name="jcgm" default="jar">
 	
 	<!-- The image package -->
-	<property name="version-image" value="0.1.1"/>
+	<property name="version-image" value="0.1.2"/>
 	<property name="package-name-image" value="jcgm-image-${version-image}"/>
 	<property name="jar-name-image" value="${package-name-image}.jar"/>
 	<property name="package-name-image-bin" value="${package-name-image}-bin"/>
 
 	<!-- The dependent core package -->
-	<property name="jcgm-core" value="jcgm-core-0.3.0.jar"/>
+	<property name="jcgm-core" value="jcgm-core-2.0.2.jar"/>
 
 	<!-- Source code only distributed in one package -->
 	<property name="package-name-src" value="jcgm-src"/>
