@@ -35,6 +35,8 @@ import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.stream.ImageInputStream;
 import javax.xml.transform.Source;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.xmlgraphics.image.loader.ImageContext;
 import org.apache.xmlgraphics.image.loader.ImageException;
 import org.apache.xmlgraphics.image.loader.ImageInfo;
@@ -60,7 +62,9 @@ import org.apache.xmlgraphics.image.loader.util.ImageUtil;
  * @see <a href="http://xmlgraphics.apache.org/">xmlgraphics.apache.org</a>
  */
 public class PreloaderCGM extends AbstractImagePreloader {
-
+	
+	protected static Log log = LogFactory.getLog("net.sf.jcgm.image.loader.cgm.PreloaderCGM");
+	
 	@Override
 	public ImageInfo preloadImage(String originalURI, Source src, ImageContext context)
 			throws ImageException, IOException {
@@ -94,7 +98,10 @@ public class PreloaderCGM extends AbstractImagePreloader {
                 if (firstIOException == null) {
                     firstIOException = ioe;
                 }
-            } finally {
+	        } catch (NullPointerException e) {
+		        log.warn(originalURI + " " + e);
+		        return null;
+	        } finally {
                 reader.dispose();
                 in.reset();
             }
