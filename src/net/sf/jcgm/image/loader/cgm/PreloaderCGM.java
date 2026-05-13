@@ -28,10 +28,7 @@
 package net.sf.jcgm.image.loader.cgm;
 
 import java.io.IOException;
-import java.util.Iterator;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.metadata.IIOMetadata;
+
 import javax.imageio.stream.ImageInputStream;
 import javax.xml.transform.Source;
 
@@ -42,8 +39,9 @@ import org.apache.xmlgraphics.image.loader.ImageException;
 import org.apache.xmlgraphics.image.loader.ImageInfo;
 import org.apache.xmlgraphics.image.loader.ImageSize;
 import org.apache.xmlgraphics.image.loader.impl.AbstractImagePreloader;
-import org.apache.xmlgraphics.image.loader.impl.imageio.ImageIOUtil;
 import org.apache.xmlgraphics.image.loader.util.ImageUtil;
+
+import net.sf.jcgm.core.CGM;
 
 /**
  * Preloader for CGM files.
@@ -73,66 +71,52 @@ public class PreloaderCGM extends AbstractImagePreloader {
         }
         
         ImageInputStream in = ImageUtil.needImageInputStream(src);
-        Iterator<ImageReader> iter = ImageIO.getImageReaders(in);
-        if (!iter.hasNext()) {
-            return null;
-        }
-        
         IOException firstIOException = null;
-        IIOMetadata iiometa = null;
-        ImageSize size = null;
-        String mime = null;
-        while (iter.hasNext()) {
-        	ImageReader reader = iter.next();
-        	try {
-        		reader.setInput(ImageUtil.ignoreFlushing(in), true, false);
-        		in.mark();
-                final int imageIndex = 0;
-                iiometa = reader.getImageMetadata(imageIndex);
-                size = new ImageSize();
-                size.setSizeInPixels(reader.getWidth(imageIndex), reader.getHeight(imageIndex));
-                mime = reader.getOriginatingProvider().getMIMETypes()[0];
-                break;
-            } catch (IOException ioe) {
-                //remember the first exception, ignore all others and continue
-                if (firstIOException == null) {
-                    firstIOException = ioe;
-                }
-	        } catch (NullPointerException e) {
-		        log.warn(originalURI + " " + e);
-		        return null;
-	        } finally {
-                reader.dispose();
-                in.reset();
+        try {
+            // Use the new readHeaderOnly feature to efficiently read just the CGM header
+            CGM cgm = new CGM();
+            in.mark();
+            cgm.readHeader(in);
+            in.reset();
+            
+            // Extract dimensions from the CGM header
+            ImageSize size = new ImageSize();
+            java.awt.Dimension cgmSize = cgm.getSize();
+            if (cgmSize == null) {
+                throw new ImageException("Could not extract image size from CGM header");
             }
-        }
-        
-        if (iiometa == null || size == null) {
-            if (firstIOException == null) {
-                throw new ImageException("Could not extract image metadata");
-            } else {
-                throw new ImageException("I/O error while extracting image metadata"
-                        + (firstIOException.getMessage() != null
-                            ? ": " + firstIOException.getMessage()
-                            : ""),
-                        firstIOException);
+            size.setSizeInPixels(cgmSize.width, cgmSize.height);
+            
+            // Set resolution from context and calculate size if needed
+            size.setResolution(context.getSourceResolution());
+            if (size.getWidthMpt() == 0) {
+                size.calcSizeFromPixels();
             }
+            
+            // Create ImageInfo and store the input stream for later use by the loader
+            ImageInfo info = new ImageInfo(originalURI, "image/cgm");
+            info.getCustomObjects().put("InputStream", in);
+            info.setSize(size);
+            
+            return info;
+        } catch (IOException ioe) {
+            firstIOException = ioe;
+        } catch (NullPointerException e) {
+            log.warn(originalURI + " " + e);
+            return null;
+        } finally {
+            in.reset();
         }
         
-        //Resolution (first a default, then try to read the metadata)
-        size.setResolution(context.getSourceResolution());
-        ImageIOUtil.extractResolution(iiometa, size);
-        if (size.getWidthMpt() == 0) {
-            size.calcSizeFromPixels();
+        if (firstIOException != null) {
+            throw new ImageException("I/O error while extracting image metadata"
+                    + (firstIOException.getMessage() != null
+                        ? ": " + firstIOException.getMessage()
+                        : ""),
+                    firstIOException);
         }
         
-        ImageInfo info = new ImageInfo(originalURI, mime);
-        info.getCustomObjects().put(ImageIOUtil.IMAGEIO_METADATA, iiometa);
-        // remember the input stream that will be used in the loader
-        info.getCustomObjects().put("InputStream", in);
-        info.setSize(size);
-
-        return info;
+        return null;
 	}
 
 }
