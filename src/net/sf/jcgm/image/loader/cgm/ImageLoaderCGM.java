@@ -67,6 +67,7 @@ public class ImageLoaderCGM extends AbstractImageLoader {
 	
     /** logging instance */
     protected static Log log = LogFactory.getLog("net.sf.jcgm.image.loader.cgm.ImageLoaderCGM");
+	private boolean isDebugMode = false;
 	
 	private final ImageFlavor targetFlavor;
 
@@ -76,6 +77,11 @@ public class ImageLoaderCGM extends AbstractImageLoader {
             throw new IllegalArgumentException("Unsupported target ImageFlavor: " + targetFlavor);
 		}
 		
+		loadSystemProperties();
+	}
+
+	private void loadSystemProperties() {
+		this.isDebugMode =  Boolean.getBoolean("net.sf.jcgm.image.loader.cgm.debugmode");
 	}
 
 	@Override
@@ -107,8 +113,10 @@ public class ImageLoaderCGM extends AbstractImageLoader {
 		final CGMDisplay display = new CGMDisplay(cgm);
 		
 		// publish the error messages to the logger
-		for (Message m: cgm.getMessages()) {
-			log.warn(info.getOriginalURI()+ " " + m);
+		if (this.isDebugMode) {
+			for (Message m: cgm.getMessages()) {
+				log.warn(info.getOriginalURI()+ " " + m);
+			}
 		}
 		
 		return new ImageGraphics2D(info, new Graphics2DImagePainter() {
